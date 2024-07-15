@@ -1,1 +1,1 @@
-from . import DataArray
+from .LabelledDataArray import LabelledDataArray

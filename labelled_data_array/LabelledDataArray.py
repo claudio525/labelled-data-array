@@ -1,29 +1,35 @@
 import numpy as np
 import pandas as pd
 
-from typing import Tuple, Sequence
+from typing import Sequence
 
 
-class DataArray:
+class LabelledDataArray:
 
-    def __init__(self, values: np.ndarray, axis_labels: Tuple[Sequence[str]]):
+    def __init__(self, values: np.ndarray, axis_labels: tuple, axis_names: tuple = None):
         self.values = values
         self.axis_labels = [np.asarray(cur_labels) for cur_labels in axis_labels]
+        self.axis_names = [f"axis_{ix}" for ix in range(len(axis_labels))] if axis_names is None else list(axis_names)
 
         # TODO: Check that the axis labels are unique
+        # TODO: Add support for setting items
+        # Todo: Add support for creating empty DataArray
 
         if len(self.axis_labels) != self.values.ndim:
             raise ValueError(
                 f"Expected {self.values.ndim} axis labels, got {len(self.axis_labels)}"
             )
-        self._n_dims = len(self.axis_labels)
+        self.n_dims = len(self.axis_labels)
 
-        for ix in range(self._n_dims):
+        for ix in range(self.n_dims):
             if self.axis_labels[ix].size != values.shape[ix]:
                 raise ValueError(
                     f"Expected {self.values.shape[ix]} axis labels for axis {ix}, "
                     f"got {self.axis_labels[ix].size}"
                 )
+
+        if not isinstance(self.axis_names, list):
+            raise ValueError("axis-names must be a list of strings")
 
         # TODO: Check that the axis labels are strings
 
@@ -40,16 +46,16 @@ class DataArray:
         self.values[key] = value
 
     class _SelectIndexer:
-        def __init__(self, parent: "DataArray"):
+        def __init__(self, parent: "LabelledDataArray"):
             self.parent = parent
 
         def __getitem__(self, key):
             if not isinstance(key, tuple):
                 key = (key,)
 
-            if len(key) != self.parent._n_dims:
+            if len(key) != self.parent.n_dims:
                 raise ValueError(
-                    f"Expected {self.parent._n_dims} indices, got {len(key)}"
+                    f"Expected {self.parent.n_dims} indices, got {len(key)}"
                 )
 
             apply_keys = []
@@ -99,3 +105,25 @@ class DataArray:
     @property
     def sel(self):
         return self._SelectIndexer(self)
+
+    class _LabelIndexer:
+        def __init__(self, parent: "LabelledDataArray"):
+            self.parent = parent
+
+        def __getitem__(self, key):
+            if not isinstance(key, str):
+                raise ValueError("Expected a string key")
+
+            if key not in self.parent.axis_names:
+                raise ValueError(f"Key '{key}' not found in axis names {self.parent.axis_names}")
+
+            return self.parent.axis_labels[self.parent.axis_names.index(key)]
+
+    @property
+    def labels(self):
+        """Returns the labels for the specified axis"""
+        return self._LabelIndexer(self)
+
+    @property
+    def shape(self):
+        return self.values.shape
