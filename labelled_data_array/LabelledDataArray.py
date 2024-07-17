@@ -6,10 +6,16 @@ from typing import Sequence
 
 class LabelledDataArray:
 
-    def __init__(self, values: np.ndarray, axis_labels: tuple, axis_names: tuple = None):
+    def __init__(
+        self, values: np.ndarray, axis_labels: tuple, axis_names: tuple = None
+    ):
         self.values = values
         self.axis_labels = [np.asarray(cur_labels) for cur_labels in axis_labels]
-        self.axis_names = [f"axis_{ix}" for ix in range(len(axis_labels))] if axis_names is None else list(axis_names)
+        self.axis_names = (
+            [f"axis_{ix}" for ix in range(len(axis_labels))]
+            if axis_names is None
+            else list(axis_names)
+        )
 
         # TODO: Check that the axis labels are unique
         # TODO: Add support for setting items
@@ -115,9 +121,62 @@ class LabelledDataArray:
                 raise ValueError("Expected a string key")
 
             if key not in self.parent.axis_names:
-                raise ValueError(f"Key '{key}' not found in axis names {self.parent.axis_names}")
+                raise ValueError(
+                    f"Key '{key}' not found in axis names {self.parent.axis_names}"
+                )
 
             return self.parent.axis_labels[self.parent.axis_names.index(key)]
+
+    def rearrange(self, new_axis_names_order: tuple[str]):
+        """
+        Rearrange the axes of the DataArray
+
+        Parameters
+        ----------
+        new_axis_names_order: tuple of strings
+            The new order of the axis names
+
+        Returns
+        -------
+        LabelledDataArray:
+            A new LabelledDataArray with the rearranged axes
+        """
+        new_axis_names_ix = [self.axis_names.index(name) for name in new_axis_names_order]
+        new_axis_labels = [self.axis_labels[ix] for ix in new_axis_names_ix]
+        new_values = np.transpose(self.values, new_axis_names_ix)
+
+        return LabelledDataArray(new_values, new_axis_labels, new_axis_names_order)
+
+    def sum(self, axis: int | str):
+        """
+        Sum along the specified axis
+
+        Parameters
+        ----------
+        axis: int or string
+            Either the axis index or the axis name
+            corresponding to the axis to sum over
+
+        Returns
+        -------
+        LabelledDataArray:
+            A new LabelledDataArray with the summed values
+        """
+        axis_ix = axis if isinstance(axis, int) else self.axis_names.index(axis)
+        axis_name = self.axis_names[axis_ix]
+
+        new_axis_names, new_axis_labels = zip(
+            *[
+                (name, labels)
+                for i, (name, labels) in enumerate(
+                    zip(self.axis_names, self.axis_labels)
+                )
+                if i != axis_ix
+            ]
+        )
+        new_values = self.values.sum(axis=axis_ix)
+
+        return LabelledDataArray(new_values, new_axis_labels, new_axis_names)
 
     @property
     def labels(self):
