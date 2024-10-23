@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 import numpy as np
 import pandas as pd
 
@@ -43,7 +45,7 @@ class LabelledDataArray:
         return self.values
 
     def __repr__(self):
-        return f"DataArray({self.values}, {self.axis_labels})"
+        return f"DataArray(Shape={self.values.shape}, AxisNames={self.axis_names})"
 
     def __getitem__(self, key):
         return self.values[key]
@@ -65,20 +67,33 @@ class LabelledDataArray:
                 )
 
             apply_keys = []
-            sel_axis, slice_axis = [], []
+            slice_axis = []
+            # sel_axis = []
             for axis_ix, cur_key in enumerate(key):
+                # Slicing
                 if isinstance(cur_key, slice):
                     apply_keys.append(cur_key)
                     slice_axis.append(axis_ix)
 
-                if isinstance(cur_key, str):
+                # Selection of a single value
+                elif isinstance(cur_key, str):
                     if cur_key not in self.parent.axis_labels[axis_ix]:
                         raise ValueError(f"Key '{cur_key}' not found in axis {axis_ix}")
 
                     apply_keys.append(
                         np.flatnonzero(self.parent.axis_labels[axis_ix] == cur_key)[0]
                     )
-                    sel_axis.append(axis_ix)
+                    # sel_axis.append(axis_ix)
+
+                # Selection subset via sequence
+                # elif isinstance(cur_key, Sequence):
+                #     if np.unique(cur_key).size < len(cur_key):
+                #         raise ValueError(f"The keys have to be unique, axis index {axis_ix}")
+                #
+                #     apply_keys.append(np.isin(self.parent.axis_labels[axis_ix], cur_key))
+                #
+                else:
+                    raise ValueError("Invalid key type")
 
             apply_keys = tuple(apply_keys)
             result = self.parent[apply_keys]
@@ -126,6 +141,15 @@ class LabelledDataArray:
                 )
 
             return self.parent.axis_labels[self.parent.axis_names.index(key)]
+
+    @property
+    def labels(self):
+        """Returns the labels for the specified axis"""
+        return self._LabelIndexer(self)
+
+    @property
+    def shape(self):
+        return self.values.shape
 
     def rearrange(self, new_axis_names_order: tuple[str]):
         """
@@ -178,11 +202,27 @@ class LabelledDataArray:
 
         return LabelledDataArray(new_values, new_axis_labels, new_axis_names)
 
-    @property
-    def labels(self):
-        """Returns the labels for the specified axis"""
-        return self._LabelIndexer(self)
+    def get_indexer(self, keys: Sequence[str | int], axis: int | str):
+        """
+        Get the indexer for the specified keys along the specified axis
 
-    @property
-    def shape(self):
-        return self.values.shape
+        Parameters
+        ----------
+        keys: Sequence of strings or ints
+            The key to get the indexer for
+        axis: int or string
+            Either the axis index or the axis name
+            corresponding to the axis to get the indexer for
+
+        Returns
+        -------
+        np.ndarray:
+            The indexer for the specified key along the specified axis
+        """
+        axis_ix = axis if isinstance(axis, int) else self.axis_names.index(axis)
+
+        index = pd.Index(self.axis_labels[axis_ix])
+        return index.get_indexer_for(keys)
+
+
+
