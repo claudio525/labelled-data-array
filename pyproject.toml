@@ -7,19 +7,21 @@ packages = ["labelled_data_array"]
 
 [project]
 name = "labelled-data-array"
-version = "0.1.0"
 description = "A Python package for handling data arrays with axis labels"
 authors = [
-    { name = "claudio525", email = "claudio525@example.com" }
+    { name = "claudio525" }
 ]
 readme = "README.md"
 license = {text = "MIT License"}
 requires-python = ">= 3.8"
+dynamic=["version"]
 dependencies = [
     "numpy",
     "pandas"
 ]
 
+[tool.setuptools_scm]
+
 [project.urls]
-Source = "https://github.com/claudio525/data-array"
+Source = "https://github.com/claudio525/labelled-data-array"
 
